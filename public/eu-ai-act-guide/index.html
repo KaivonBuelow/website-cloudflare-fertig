@@ -621,6 +621,13 @@ document.getElementById('leadForm').addEventListener('submit', function(e){
     return;
   }
 
+  // UTM-Parameter aus URL extrahieren
+  const urlParams = new URLSearchParams(window.location.search);
+  const utm_source = urlParams.get('utm_source') || '';
+  const utm_medium = urlParams.get('utm_medium') || '';
+  const utm_campaign = urlParams.get('utm_campaign') || 'vbc_2026';
+  const utm_content = urlParams.get('utm_content') || '';
+
   // Payload mit voller internationaler Nummer
   const payload = {
     name: document.getElementById('name').value.trim(),
@@ -630,21 +637,41 @@ document.getElementById('leadForm').addEventListener('submit', function(e){
     firma: document.getElementById('firma').value.trim(),
     rolle: document.getElementById('rolle').value,
     quelle: 'free_bee_ai_act_dsgvo',
+    utm_source,
+    utm_medium,
+    utm_campaign,
+    utm_content,
     timestamp: new Date().toISOString()
   };
 
   btn.textContent = 'Wird versendet ...';
   btn.disabled = true;
 
-  // POST zum n8n-Webhook (URL setzen wenn live)
-  // fetch('https://n8n.vonbuelow-consulting.de/webhook/free-bee', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
-  setTimeout(() => {
-    btn.textContent = '✓ Guide unterwegs. Schauen Sie ins Postfach.';
-    btn.style.background = '#0A0C12';
-    btn.style.color = '#C9A961';
-    btn.style.border = '1px solid #C9A961';
-    console.log('Lead-Payload (zum n8n-Webhook senden):', payload);
-  }, 800);
+  // POST zum n8n-Webhook
+  fetch('https://n8n.vonbuelow-consulting.de/webhook/free-bee-eu-ai-act-guide', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+    .then(r => r.json().then(data => ({ ok: r.ok, data })))
+    .then(({ ok, data }) => {
+      if (ok && data.success) {
+        btn.textContent = '✓ Guide unterwegs. Schauen Sie ins Postfach.';
+        btn.style.background = '#0A0C12';
+        btn.style.color = '#C9A961';
+        btn.style.border = '1px solid #C9A961';
+      } else {
+        btn.textContent = data.message || 'Etwas ist schiefgegangen. Bitte erneut versuchen.';
+        btn.disabled = false;
+        setTimeout(() => btn.textContent = 'Guide jetzt anfordern →', 4000);
+      }
+    })
+    .catch(err => {
+      console.error('Submit fehlgeschlagen:', err);
+      btn.textContent = 'Netzwerkfehler. Bitte erneut versuchen.';
+      btn.disabled = false;
+      setTimeout(() => btn.textContent = 'Guide jetzt anfordern →', 4000);
+    });
 });
 </script>
 </body>
