@@ -197,6 +197,7 @@ footer .legal{max-width:1280px;margin:40px auto 0;padding-top:24px;border-top:1p
   footer .footer-inner{flex-direction:column}
 }
 </style>
+<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "a62f6f22208b4596a75331bdf240e837"}'></script><!-- End Cloudflare Web Analytics -->
 </head>
 <body>
 
@@ -653,15 +654,28 @@ document.getElementById('leadForm').addEventListener('submit', function(e){
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   })
-    .then(r => r.json().then(data => ({ ok: r.ok, data })))
-    .then(({ ok, data }) => {
-      if (ok && data.success) {
+    .then(r => r.text().then(text => ({ status: r.status, ok: r.ok, text })))
+    .then(({ status, ok, text }) => {
+      // Parse JSON nur wenn Body nicht leer ist
+      let data = null;
+      if (text && text.trim().length > 0) {
+        try { data = JSON.parse(text); } catch (e) { /* nicht-JSON, ignore */ }
+      }
+
+      if (ok) {
+        // 200-299: Erfolg
         btn.textContent = '✓ Guide unterwegs. Schauen Sie ins Postfach.';
         btn.style.background = '#0A0C12';
         btn.style.color = '#C9A961';
         btn.style.border = '1px solid #C9A961';
+      } else if (status === 400 && data && data.message) {
+        // 400: Validierungsfehler aus Workflow
+        btn.textContent = data.message;
+        btn.disabled = false;
+        setTimeout(() => btn.textContent = 'Guide jetzt anfordern →', 5000);
       } else {
-        btn.textContent = data.message || 'Etwas ist schiefgegangen. Bitte erneut versuchen.';
+        // Andere Fehler
+        btn.textContent = 'Etwas ist schiefgegangen. Bitte erneut versuchen.';
         btn.disabled = false;
         setTimeout(() => btn.textContent = 'Guide jetzt anfordern →', 4000);
       }
